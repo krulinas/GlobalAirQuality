@@ -10,12 +10,9 @@ st.title("🌏 China vs France: Air Pollution Dashboard")
 
 # --- Sidebar Filters ---
 st.sidebar.header("Filter by:")
-
-# Country selection (locked to China & France)
 countries = ["China", "France"]
 st.sidebar.write("**Countries fixed for comparison**: China 🇨🇳 & France 🇫🇷")
 
-# Pollutant selection
 pollutants = {
     "Carbon Monoxide (CO)": "CO AQI Value",
     "Ozone (O3)": "Ozone AQI Value",
@@ -24,8 +21,6 @@ pollutants = {
     "Overall AQI": "AQI Value"
 }
 selected_pollutant = st.sidebar.selectbox("Select Pollutant", list(pollutants.keys()))
-
-# Filtered DataFrame
 filtered_df = df[df['Country'].isin(countries)]
 
 # --- Main Section ---
@@ -46,6 +41,25 @@ if not filtered_df.empty:
 else:
     st.warning("No data available for China or France.")
 
-# Optional: Show raw data
+# --- Raw Data Viewer ---
 with st.expander("🔍 View Raw Data"):
     st.dataframe(filtered_df)
+
+# --- Dataset License Info ---
+with st.expander("📄 Dataset & License Info"):
+    st.markdown("""
+**Dataset Title**: Global Air Pollution Dataset  
+**Author**: Hasib Al Muzdadid  
+**Source**: [Kaggle - Global Air Pollution Dataset](https://www.kaggle.com/datasets/hasibalmuzdadid/global-air-pollution-dataset)  
+**License**: Publicly available via Kaggle for educational and research use only.  
+*No commercial use or redistribution intended. All rights belong to the original creator.*
+""")
+
+# --- Footer ---
+st.markdown("""
+<hr>
+<p style='text-align: center; color: gray; font-size: 0.85rem'>
+Data © <a href='https://www.kaggle.com/datasets/hasibalmuzdadid/global-air-pollution-dataset' target='_blank'>Hasib Al Muzdadid</a> via Kaggle  
+| Made with 💖 by Baby using Streamlit & Plotly ✨
+</p>
+""", unsafe_allow_html=True)
