@@ -1,59 +1,97 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
 
-# Load dataset
+# --- Load and preprocess dataset ---
 df = pd.read_csv("global_air.csv")
 
-st.set_page_config(page_title="China vs France Air Pollution", layout="wide")
-st.title("🌏 China vs France: Air Pollution Dashboard")
+# Select relevant columns and drop rows with missing or non-numeric values
+features = ['CO AQI Value', 'Ozone AQI Value', 'NO2 AQI Value', 'PM2.5 AQI Value']
+target = 'AQI Value'
+df_clean = df[features + [target]].apply(pd.to_numeric, errors='coerce').dropna()
 
-# --- Sidebar Filters ---
-st.sidebar.header("Filter by:")
-countries = ["China", "France"]
-st.sidebar.write("**Countries fixed for comparison**: China 🇨🇳 & France 🇫🇷")
+# Split data for training and testing
+X = df_clean[features]
+y = df_clean[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-pollutants = {
-    "Carbon Monoxide (CO)": "CO AQI Value",
-    "Ozone (O3)": "Ozone AQI Value",
-    "Nitrogen Dioxide (NO2)": "NO2 AQI Value",
-    "Particulate Matter (PM2.5)": "PM2.5 AQI Value",
-    "Overall AQI": "AQI Value"
-}
-selected_pollutant = st.sidebar.selectbox("Select Pollutant", list(pollutants.keys()))
-filtered_df = df[df['Country'].isin(countries)]
+# Train Random Forest Regressor
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
 
-# --- Main Section ---
-st.subheader(f"{selected_pollutant} Levels in China & France")
-pollutant_column = pollutants[selected_pollutant]
+# --- Streamlit App Layout ---
+st.set_page_config(page_title="Global Air Quality Dashboard", layout="wide")
+st.title("🌍 Global Air Quality Intelligence Dashboard")
 
-if not filtered_df.empty:
-    fig = px.bar(
-        filtered_df,
-        x="City",
-        y=pollutant_column,
-        color="Country",
-        barmode="group",
-        labels={pollutant_column: f"{selected_pollutant} AQI"},
-        title=f"City-wise {selected_pollutant} AQI Levels"
-    )
+# --- Tab Navigation ---
+tab1, tab2, tab3 = st.tabs(["🌐 Overview", "📈 Prediction Tool", "📊 Country Comparison"])
+
+# --- TAB 1: Overview Dashboard ---
+with tab1:
+    st.markdown("### 🌫️ Global AQI Metrics")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🌬️ Avg CO AQI", round(df_clean['CO AQI Value'].mean(), 2))
+    col2.metric("☀️ Avg Ozone AQI", round(df_clean['Ozone AQI Value'].mean(), 2))
+    col3.metric("🧪 Avg NO2 AQI", round(df_clean['NO2 AQI Value'].mean(), 2))
+
+    st.markdown("### 🧭 AQI by Country")
+    fig_bar = px.bar(df[df['Country'].isin(["China", "France", "India", "United States", "Germany", "Brazil", "Italy", "Indonesia"])],
+                     x='Country', y='AQI Value', color='Country', title="Country-wise AQI Distribution",
+                     labels={'AQI Value': 'AQI Level'})
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+    st.markdown("### 🌍 Geo-distribution of NO2 AQI")
+    if 'Latitude' in df.columns and 'Longitude' in df.columns:
+        geo_df = df.dropna(subset=['NO2 AQI Value', 'Latitude', 'Longitude'])
+        fig_map = px.scatter_geo(geo_df, lat='Latitude', lon='Longitude', color='NO2 AQI Value',
+                                 hover_name='City', title="City-wise NO2 AQI",
+                                 color_continuous_scale="Turbo")
+        st.plotly_chart(fig_map, use_container_width=True)
+
+# --- TAB 2: ML Prediction Tool ---
+with tab2:
+    st.markdown("### 🔍 Predict AQI Based on Pollutants")
+    st.sidebar.header("Input Pollutant Levels")
+    co_val = st.sidebar.slider("CO AQI Value", 0, 200, 50)
+    o3_val = st.sidebar.slider("Ozone AQI Value", 0, 200, 50)
+    no2_val = st.sidebar.slider("NO2 AQI Value", 0, 200, 50)
+    pm25_val = st.sidebar.slider("PM2.5 AQI Value", 0, 200, 50)
+
+    input_df = pd.DataFrame({
+        'CO AQI Value': [co_val],
+        'Ozone AQI Value': [o3_val],
+        'NO2 AQI Value': [no2_val],
+        'PM2.5 AQI Value': [pm25_val]
+    })
+
+    predicted_aqi = model.predict(input_df)[0]
+    st.metric(label="🎯 Predicted AQI", value=round(predicted_aqi, 2))
+
+    st.markdown("### 📉 Model Performance")
+    y_pred = model.predict(X_test)
+    performance_df = pd.DataFrame({"Actual AQI": y_test, "Predicted AQI": y_pred})
+    fig = px.scatter(performance_df, x="Actual AQI", y="Predicted AQI", trendline="ols",
+                     title="Actual vs Predicted AQI")
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("No data available for China or France.")
 
-# --- Raw Data Viewer ---
-with st.expander("🔍 View Raw Data"):
-    st.dataframe(filtered_df)
+    st.markdown(f"**Mean Squared Error (MSE):** {mean_squared_error(y_test, y_pred):.2f}")
+    st.markdown(f"**R-squared (R²):** {r2_score(y_test, y_pred):.4f}")
 
-# --- Dataset License Info ---
-with st.expander("📄 Dataset & License Info"):
-    st.markdown("""
-**Dataset Title**: Global Air Pollution Dataset  
-**Author**: Hasib Al Muzdadid  
-**Source**: [Kaggle - Global Air Pollution Dataset](https://www.kaggle.com/datasets/hasibalmuzdadid/global-air-pollution-dataset)  
-**License**: Publicly available via Kaggle for educational and research use only.  
-*No commercial use or redistribution intended. All rights belong to the original creator.*
-""")
+# --- TAB 3: Country Comparison (Interactive Filters) ---
+with tab3:
+    st.markdown("### 🌐 Compare AQI Between Countries")
+    selected_pollutant = st.selectbox("Select Pollutant for Comparison", features)
+    countries = df['Country'].unique().tolist()
+    selected_countries = st.multiselect("Choose Countries", countries, default=["China", "France"])
+
+    comp_df = df[df['Country'].isin(selected_countries)]
+    fig_comp = px.box(comp_df, x='Country', y=selected_pollutant, color='Country',
+                      title=f"Distribution of {selected_pollutant} AQI Values")
+    st.plotly_chart(fig_comp, use_container_width=True)
 
 # --- Footer ---
 st.markdown("""
