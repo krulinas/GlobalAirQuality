@@ -96,12 +96,30 @@ with tab1:
     col3.metric("🧪 Avg NO2 AQI", round(df_clean['NO2 AQI Value'].mean(), 2))
 
     st.markdown("### 🌟 AQI by Country")
+
+    # --- Custom color map for fixed countries ---
+    color_map = {'France': '#FF1E1E', 'China': '#FFD600'}
     fig_bar = px.bar(df_filtered, x='City', y='AQI Value', color='Country',
                      labels={'AQI Value': 'AQI Level'},
                      title="City-wise AQI in China & France",
-                     color_discrete_sequence=thor_colors)
-    fig_bar.update_layout(template="plotly_dark", xaxis_tickangle=45, height=600, margin=dict(b=200))
+                     color_discrete_map=color_map)
+
+    fig_bar.update_layout(
+        template="plotly_dark",
+        xaxis_tickangle=45,
+        height=600,
+        margin=dict(b=200)
+    )
     st.plotly_chart(fig_bar, use_container_width=True)
+
+    # Optional: Show % of total AQI contributed by each country
+    st.markdown("#### 📊 Percentage of AQI Contribution")
+    total_aqi = df_filtered.groupby('Country')['AQI Value'].sum()
+    percent_df = (total_aqi / total_aqi.sum() * 100).round(2).reset_index()
+    for idx, row in percent_df.iterrows():
+        emoji = "🇫🇷" if row['Country'] == "France" else "🇨🇳"
+        color = color_map[row['Country']]
+        st.markdown(f"<span style='color:{color}; font-size:1.1em'>{emoji} {row['Country']}: {row['AQI Value']}%</span>", unsafe_allow_html=True)
 
     st.markdown("### 🌍 Geo-distribution of NO2 AQI")
     if 'Latitude' in df.columns and 'Longitude' in df.columns:
