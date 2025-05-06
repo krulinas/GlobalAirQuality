@@ -46,13 +46,12 @@ st.markdown("""
 
 # --- Dashboard Title ---
 st.title("🌍 Global Air Quality Intelligence Dashboard")
-st.markdown("#### ⚡ Welcome to the *Ragnarok AQI Arena*")
 
 # --- Intro & Public-Focused Explanation ---
 with st.expander("ℹ️ What is this Dashboard About?", expanded=True):
     st.markdown("""
 This dashboard helps you **analyze and predict Air Quality Index (AQI)** in **China** and **France**, using real-world pollutant data.  
-We focus on four key pollutants:
+We focus on 4 key pollutants:
 - **CO**: Carbon Monoxide (from vehicle fuel)
 - **Ozone (O3)**: Surface-level ozone (from UV reactions)
 - **NO2**: Nitrogen Dioxide (from car exhaust)
@@ -61,10 +60,9 @@ We focus on four key pollutants:
 ✨ You can:
 - See **average pollution** by country and city
 - Compare pollution levels in **China vs France**
-- Use **machine learning** to predict AQI
-- View **interactive graphs** (bar, line, box, area)
+- Use machine learning to predict AQI
+- View interactive graphs 
 
-Simple enough for the public. Powerful enough for analysts.
 """, unsafe_allow_html=True)
 
 # --- Load Dataset ---
@@ -164,12 +162,64 @@ with tab2:
 # ============== TAB 3: COUNTRY COMPARISON ==============
 with tab3:
     st.header("🌐 Compare AQI Between Countries")
-    selected_pollutant = st.selectbox("Select Pollutant for Comparison", features)
-    fig_comp = px.box(df_filtered, x='Country', y=selected_pollutant, color='Country',
-                      title=f"{selected_pollutant} Distribution",
-                      color_discrete_sequence=thor_colors)
-    fig_comp.update_layout(template="plotly_dark")
-    st.plotly_chart(fig_comp, use_container_width=True)
+
+    # User selection for pollutant and chart type
+    selected_pollutant = st.selectbox("Select Pollutant for Comparison", features, key="comp_pollutant")
+    vis_type_tab3 = st.radio("Select Visualization Type", ['Box', 'Bar'], horizontal=True, key="comp_chart_type")
+
+    # Filtered data and custom colors
+    comp_df = df_filtered.copy()
+    color_map = {'France': '#FF1E1E', 'China': '#FFD600'}
+
+    # Visualization logic
+    if vis_type_tab3 == 'Box':
+        fig = px.box(comp_df, x='Country', y=selected_pollutant, color='Country',
+                     title=f"{selected_pollutant} - Box Plot Comparison",
+                     color_discrete_map=color_map)
+    elif vis_type_tab3 == 'Bar':
+        agg_df = comp_df.groupby(['City', 'Country'], as_index=False)[selected_pollutant].mean()
+        agg_df = agg_df.sort_values(by=selected_pollutant, ascending=False).head(20)
+        fig = px.bar(agg_df, x='City', y=selected_pollutant, color='Country',
+                     title=f"{selected_pollutant} - Top 20 City Comparison",
+                     color_discrete_map=color_map)
+
+    fig.update_layout(template="plotly_dark", xaxis_tickangle=45, height=600)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Statistical Summary Table
+    st.markdown("### 📊 Statistical Summary by Country")
+    summary = comp_df.groupby('Country')[selected_pollutant].agg(['mean', 'median', 'max', 'min']).round(2)
+    st.dataframe(summary)
+
+    # Top 5 Cities Table
+    st.markdown("### 🏅 Top 5 Cities by AQI Level")
+    top5 = comp_df[['City', 'Country', selected_pollutant]].sort_values(by=selected_pollutant, ascending=False).head(5)
+    st.table(top5)
+
+    # Smart Insight Section
+    st.markdown("### 🧠 Insight")
+    china_mean = summary.loc["China", "mean"]
+    france_mean = summary.loc["France", "mean"]
+
+    if china_mean > france_mean:
+        insight = f"🇨🇳 **China** has a higher average {selected_pollutant} ({china_mean}) compared to 🇫🇷 France ({france_mean})."
+    elif france_mean > china_mean:
+        insight = f"🇫🇷 **France** has a higher average {selected_pollutant} ({france_mean}) compared to 🇨🇳 China ({china_mean})."
+    else:
+        insight = f"Both 🇨🇳 China and 🇫🇷 France have the same average {selected_pollutant} AQI: {china_mean}."
+
+    st.success(insight)
+
+    # Explanation Helper
+    with st.expander("ℹ️ What does this chart show?"):
+        st.markdown(f"""
+This section visualizes **{selected_pollutant}** levels across cities in **China** and **France**.
+
+- **Box Plot** shows distribution, median, and outliers per country.
+- **Bar Chart** displays the top 20 cities with the highest average AQI.
+
+📌 *AQI helps determine the potential health impact of air pollution.*
+        """)
 
 # ============== TAB 4: VISUAL EXPLORER ==============
 with tab4:
@@ -178,20 +228,28 @@ with tab4:
     pollutant = st.selectbox("Select Pollutant", features, key="pollutant")
     vis_type = st.radio("Choose Visualization Type", ['Bar', 'Line', 'Box', 'Area'])
 
-    top_n = 30
-    agg_df = df_filtered.groupby(['City', 'Country'], as_index=False)[pollutant].mean()
-    agg_df = agg_df.sort_values(by=pollutant, ascending=False).head(top_n)
+    # Filter and aggregate top 30 for each country separately, then concat to ensure both are shown
+    top_n = 15
+    china_top = df_filtered[df_filtered['Country'] == 'China'].groupby(['City', 'Country'], as_index=False)[pollutant].mean().sort_values(by=pollutant, ascending=False).head(top_n)
+    france_top = df_filtered[df_filtered['Country'] == 'France'].groupby(['City', 'Country'], as_index=False)[pollutant].mean().sort_values(by=pollutant, ascending=False).head(top_n)
+    agg_df = pd.concat([china_top, france_top])
+
+    # Custom color map for consistency
+    custom_colors = {'France': '#FF1E1E', 'China': '#FFD600'}
 
     if vis_type == "Bar":
         fig = px.bar(agg_df, x='City', y=pollutant, color='Country',
-                     color_discrete_sequence=thor_colors)
+                     color_discrete_map=custom_colors)
     elif vis_type == "Line":
-        fig = px.line(agg_df, x='City', y=pollutant, color='Country')
+        fig = px.line(agg_df, x='City', y=pollutant, color='Country',
+                      color_discrete_map=custom_colors)
     elif vis_type == "Box":
-        fig = px.box(df_filtered, x='Country', y=pollutant, color='Country')
+        fig = px.box(df_filtered, x='Country', y=pollutant, color='Country',
+                     color_discrete_map=custom_colors)
     elif vis_type == "Area":
         agg_df['Index'] = agg_df.groupby('Country').cumcount()
-        fig = px.area(agg_df, x='Index', y=pollutant, color='Country', line_group='Country')
+        fig = px.area(agg_df, x='Index', y=pollutant, color='Country',
+                      line_group='Country', color_discrete_map=custom_colors)
 
     fig.update_layout(template="plotly_dark", xaxis_tickangle=45, height=600)
     st.plotly_chart(fig, use_container_width=True)
