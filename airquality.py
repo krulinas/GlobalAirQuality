@@ -112,7 +112,7 @@ with tab3:
 # --- Tab 4: Visual Explorer ---
 with tab4:
     st.subheader("🎨 Advanced AQI Visualizations")
-    pollutant = st.selectbox("Select Pollutant", features)
+    pollutant = st.selectbox("Select Pollutant", features, key="visual_pollutant_selector")
     vis_type = st.radio("Choose Visualization Type", ['Bar', 'Line', 'Box', 'Area'])
 
     top_n = 25
