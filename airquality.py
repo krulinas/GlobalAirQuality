@@ -132,12 +132,19 @@ with tab1:
 with tab2:
     st.header("🎯 Predict AQI Based on Pollutants")
 
+    # Sidebar section
     st.sidebar.header("🧪 Input Pollutant Levels")
-    co_val = st.sidebar.slider("CO AQI Value", 0, 200, 50)
-    o3_val = st.sidebar.slider("Ozone AQI Value", 0, 200, 50)
-    no2_val = st.sidebar.slider("NO2 AQI Value", 0, 200, 50)
-    pm25_val = st.sidebar.slider("PM2.5 AQI Value", 0, 200, 50)
+    st.sidebar.markdown("""
+     Use the sliders below to set the air pollutant levels (AQI).  
+    The system will instantly predict the overall Air Quality Index based on your input.
+    """)
 
+    co_val = st.sidebar.slider("🌫️ CO AQI Value", 0, 200, 50)
+    o3_val = st.sidebar.slider("☀️ Ozone AQI Value", 0, 200, 50)
+    no2_val = st.sidebar.slider("🚗 NO2 AQI Value", 0, 200, 50)
+    pm25_val = st.sidebar.slider("🧪 PM2.5 AQI Value", 0, 200, 50)
+
+    # Prepare input
     input_df = pd.DataFrame({
         'CO AQI Value': [co_val],
         'Ozone AQI Value': [o3_val],
@@ -145,9 +152,26 @@ with tab2:
         'PM2.5 AQI Value': [pm25_val]
     })
 
+    # Predict AQI
     predicted_aqi = model.predict(input_df)[0]
     st.metric("🎯 Predicted AQI", round(predicted_aqi, 2))
 
+    # 👁️ Show input summary
+    st.markdown("### 🧾 Pollutant Levels Input")
+    st.dataframe(input_df)
+
+    # 🚦 AQI Category Interpretation (Responsive feedback)
+    st.markdown("### 🩺 Air Quality Status")
+    if predicted_aqi >= 150:
+        st.error("⚠️ *Unhealthy* — High risk to everyone. Limit outdoor activity.")
+    elif predicted_aqi >= 101:
+        st.warning("😷 *Moderate to Unhealthy for Sensitive Groups*. Use precautions.")
+    elif predicted_aqi >= 51:
+        st.info("🌤️ *Moderate*. Acceptable but some risk for sensitive individuals.")
+    else:
+        st.success("✅ *Good*. Air quality is considered satisfactory.")
+
+    # Model performance section
     st.subheader("📊 Model Performance")
     y_pred = model.predict(X_test)
     performance_df = pd.DataFrame({"Actual AQI": y_test, "Predicted AQI": y_pred})
@@ -156,8 +180,8 @@ with tab2:
                           title="Actual vs Predicted AQI", trendline="ols", template="plotly_dark")
     st.plotly_chart(fig_perf, use_container_width=True)
 
-    st.markdown(f"**MSE:** {mean_squared_error(y_test, y_pred):.2f}")
-    st.markdown(f"**R²:** {r2_score(y_test, y_pred):.4f}")
+    st.markdown(f"**MSE (Mean Squared Error):** {mean_squared_error(y_test, y_pred):.2f}")
+    st.markdown(f"**R² (Coefficient of Determination):** {r2_score(y_test, y_pred):.4f}")
 
 # ============== TAB 3: COUNTRY COMPARISON ==============
 with tab3:
@@ -259,6 +283,6 @@ st.markdown("""
 <hr>
 <p style='text-align: center; color: gray; font-size: 0.85rem'>
 Data © <a href='https://www.kaggle.com/datasets/hasibalmuzdadid/global-air-pollution-dataset' target='_blank'>Hasib Al Muzdadid</a> via Kaggle  
-| Styled by Thor: Ragnarok ⚡ | Built with ❤️ using Streamlit & Plotly
+| Powered by using Streamlit & Plotly | STTHK3033 Information Visualization
 </p>
 """, unsafe_allow_html=True)
