@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression
 
 # --- Streamlit Config ---
 st.set_page_config(page_title="Global Air Quality Dashboard", layout="wide")
@@ -77,11 +79,26 @@ df_clean = df[features + [target]].apply(pd.to_numeric, errors='coerce').dropna(
 df_filtered = df.dropna(subset=features)
 
 # --- Train ML Model ---
+# Random Forest
 X = df_clean[features]
 y = df_clean[target]
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 model = RandomForestRegressor(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
+
+# Decision Tree
+dt_model = DecisionTreeRegressor(random_state=42)
+dt_model.fit(X_train, y_train)
+dt_pred = dt_model.predict(X_test)
+dt_mse = mean_squared_error(y_test, dt_pred)
+dt_r2 = r2_score(y_test, dt_pred)
+
+# Linear Regression
+lr_model = LinearRegression()
+lr_model.fit(X_train, y_train)
+lr_pred = lr_model.predict(X_test)
+lr_mse = mean_squared_error(y_test, lr_pred)
+lr_r2 = r2_score(y_test, lr_pred)
 
 # --- Tabs ---
 tab1, tab2, tab3, tab4 = st.tabs(["🏠 Overview", "📈 Prediction Tool", "🌐 Country Comparison", "🎨 Visual Explorer"])
@@ -182,6 +199,28 @@ with tab2:
 
     st.markdown(f"**MSE (Mean Squared Error):** {mean_squared_error(y_test, y_pred):.2f}")
     st.markdown(f"**R² (Coefficient of Determination):** {r2_score(y_test, y_pred):.4f}")
+
+    # Display Comparison
+    st.subheader("🤖 Model Comparison")
+
+    st.markdown("**🔍 Random Forest**")
+    st.markdown(f"- MSE: `{mean_squared_error(y_test, y_pred):.2f}`")
+    st.markdown(f"- R²: `{r2_score(y_test, y_pred):.4f}`")
+
+    st.markdown("**🌳 Decision Tree**")
+    st.markdown(f"- MSE: `{dt_mse:.2f}`")
+    st.markdown(f"- R²: `{dt_r2:.4f}`")
+
+    st.markdown("**📈 Linear Regression**")
+    st.markdown(f"- MSE: `{lr_mse:.2f}`")
+    st.markdown(f"- R²: `{lr_r2:.4f}`")
+
+    # Highlight best model
+    best_model = max(
+        [("Random Forest", r2_score(y_test, y_pred)), ("Decision Tree", dt_r2), ("Linear Regression", lr_r2)],
+        key=lambda x: x[1]
+    )[0]
+    st.success(f"🏆 Best R² Score: **{best_model}**")
 
 # ============== TAB 3: COUNTRY COMPARISON ==============
 with tab3:
